@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -38,3 +39,50 @@ def create_user(user: User):
         "data": user
     }
 '''
+=======
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+app = FastAPI()
+
+"""
+class User(BaseModel):
+    name: str
+    age: int
+    email: str
+
+
+@app.post("/create_user")
+def create_user(user: User):
+    return {
+        "message": "User Created",
+        "data": user
+    }
+"""
+
+
+'''
+# Nested Models
+class Address(BaseModel):
+    city: str
+    pincode: int
+
+class User(BaseModel):
+    name: str
+    age: int
+    address: Address
+
+
+@app.post("/create_user")
+def create_user(user: User):
+    return {
+        "message": "User created",
+        "data": user
+    }
+'''
+
+
+
+
+# Todo API (Project) - CRUD
+>>>>>>> 64fea8fbc140f987df752eb12ae06accc0ffabcb
