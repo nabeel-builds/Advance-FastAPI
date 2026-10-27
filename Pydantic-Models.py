@@ -38,8 +38,3 @@ def create_user(user: User):
         "data": user
     }
 '''
-
-
-
-
-# Todo API (Project) - CRUD
