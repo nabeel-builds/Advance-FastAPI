@@ -1,30 +1,43 @@
-from fastapi import FastAPI, Request
-import time
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base, Session
+from sqlalchemy import Column, Integer, String
+from fastapi import FastAPI, Depends
 
 app = FastAPI()
 
-'''
-@app.middleware("http")
-async def my_middleware(request: Request, call_next):
-    print("Request Received")
+DATABASE_URL = "sqlite:///test.db"
 
-    response = await call_next(request)
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False}
+)
 
-    print("Response send")
+sessionLocal = sessionmaker(bind=engine)
 
-    return response
-'''
+Base = declarative_base()
 
-'''
-@app.middleware("http")
-async def log_middleware(request: Request, call_next):
-    start_time = time.time()
 
-    response = call_next(request)
+class Todo(Base):
+    __tablename__ = "todos"
 
-    process_time = time.time() - start_time
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
+    completed = Column(String)
 
-    print(f"Path:{request.url.path} | Time:{process_time}")
 
-    return response
-'''
+Base.metadata.create_all(bind=engine)
+
+
+def get_db():
+    db = sessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@app.get("/")
+def home(db: Session = Depends(get_db)):
+    return{
+        "message": "DB connected successfully!"
+    }
