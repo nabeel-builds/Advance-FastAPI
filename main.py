@@ -1,105 +1,55 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
-from sqlalchemy import Column, Integer, String, Boolean
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Header
+from jose import jwt
+from datetime import datetime, time, timedelta, timezone
 
 app = FastAPI()
 
-DATABASE_URL = "sqlite:///test.db"
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
+SECRET_KEY = "mysecretkey"
 
-sessionLocal = sessionmaker(bind=engine)
+ALGORITHM = "HS256"
 
-Base = declarative_base()
+# Create Token
+def create_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=30)
+    to_encode.update({
+        "exp": expire
+    })
+    token = jwt.encode(to_encode, SECRET_KEY, ALGORITHM)
 
-
-class Todo(Base):
-    __tablename__ = "todos"
-
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String)
-    completed = Column(Boolean)
+    return token
 
 
-Base.metadata.create_all(bind=engine)
 
 
-def get_db():
-    db = sessionLocal()
+#Login API Token Generate
+@app.post("/login")
+def login(username: str, password: int):
+    if username != "admin" or password != 12345:
+        raise HTTPException(status_code=401, detail="Invalid Username and Password!")
+    token = create_token({
+        "sub": username
+    })
+    return{
+        "access_token": token
+    }
+
+
+# Token verification
+def verify_token(token: str = Header(None)):
+
     try:
-        yield db
-    finally:
-        db.close()
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except:
+        raise HTTPException(status_code=401, detail="Inavalid or expired token")
 
-
-
-# Create API
-@app.post("/todos")
-def create_todo(title: str, db: Session = Depends(get_db)):
-    todo = Todo(title = title, completed = False)
-    db.add(todo)
-    db.commit()
-    db.refresh(todo)
+    
+# Protected Route
+@app.get("/secure")
+def secure_data(user = Depends(verify_token)):
     return{
-        "message": "Todo Created",
-        "data": todo
-    }
-
-
-# Read All data
-@app.get("/todos")
-def get_todos(db: Session = Depends(get_db)):
-    todos = db.query(Todo).all()
-
-    return{
-        "Total": len(todos),
-        "data": todos
-    }
-
-
-# Read data based on id
-@app.get("/todos/{todo_id}")
-def get_todo(todo_id= int, db: Session = Depends(get_db)):
-    todo = db.query(Todo).filter(Todo.id == todo_id).first()
-
-    if not todo:
-        raise HTTPException(status_code=404, detail="Todo not found")
-    return todo
-
-
-#Update the data
-@app.put("/todos/{todo_id}")
-def update_todo(todo_id: int, title: str, db: Session = Depends(get_db)):
-    todo = db.query(Todo).filter(Todo.id == todo_id).first()
-
-    if not todo:
-        raise HTTPException(status_code=404,detail='Todo not found')
-
-    todo.title = title
-    db.commit()
-    db.refresh(todo)
-    return{
-        "message": "Todo Updated",
-        "data": todo
-    }
-
-
-
-#Delete Todo
-@app.delete("/todos/{todo_id}")
-def delete_todo(todo_id: int, db: Session = Depends(get_db)):
-    todo = db.query(Todo).filter(Todo.id == todo_id).first()
-
-    if not todo:
-        raise HTTPException(status_code=404,detail='Todo not found')
-
-    db.delete(todo)
-    db.commit()
-
-    return{
-        "message": "Todo Deleted Successfully!"
+        "message": "Secure data accessed",
+        "user": user
     }
