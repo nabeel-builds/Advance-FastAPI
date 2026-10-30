@@ -1,32 +1,31 @@
-# import requests
-
-# response = requests.get("https://jsonplaceholder.typicode.com/posts")
-
-# data = response.json()
-# print(data)
-
-
-from fastapi import FastAPI, HTTPException
-import requests
+from fastapi import FastAPI, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from fastapi.responses import JSONResponse
 
 app = FastAPI()
 
-# GET all data
-@app.get("/posts")
-def get_posts():
-    url = "https://jsonplaceholder.typicode.com/posts"
-    response = requests.get(url)
-    return response.json()
+# Limiter SETUP
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+#Error Handle
+@app.exception_handler(RateLimitExceeded)
+def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={
+            "detail": "Too many requests"
+        }
+    )
 
 
-@app.get("/posts/{post_id}")
-def get_post(post_id: int):
-    url = f"https://jsonplaceholder.typicode.com/posts/{post_id}"
 
-    response = requests.get(url)
-
-    if response.status_code != 200:
-        raise HTTPException(status_code=404, detail="Page Not Found")
-
-    data = response.json()
-    return data
+# Rate Limiter API
+@app.get("/data")
+@limiter.limit("5/minute")
+def get_data(request: Request):
+    return{
+        "message": "Success"
+    }
